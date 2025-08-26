@@ -162,7 +162,7 @@ def parametric_var_cvar_mc(port_mean_d, port_std_d, horizon_days=1, tail_prob=0.
 
 
 # monte carlo simulation of your portfolio
-def mc_stress_test(mu_ann, cov_ann, weights, horizon_days=126, n_paths=5000, seed=1):
+def mc_sim(mu_ann, cov_ann, weights, horizon_days=126, n_paths=5000, seed=1):
     rng = np.random.default_rng(seed)
     w = np.asarray(weights).reshape(-1)
     n = len(w)
@@ -230,14 +230,14 @@ st.title("Portfolio Optimization Dashboard")
 
 st.sidebar.header("Data")
 tickers_str = st.sidebar.text_input("Comma-separated tickers", value="AAPL, MSFT, GOOGL, AMZN, JNJ, PG, JPM")
-start_date = st.sidebar.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
+start_date = st.sidebar.date_input("Start Date", value=pd.to_datetime("2024-01-01"))
 end_date = st.sidebar.date_input("End Date", value=pd.Timestamp.today().normalize())
-rf = st.sidebar.number_input("Risk-free rate (annual, dec.)", value=0.02, step=0.005, format="%.3f")
+rf = st.sidebar.number_input("Risk free rate (annual, dec.)", value=0.02, step=0.005, format="%.3f")
 
 st.sidebar.header("Optimization")
 opt_mode = st.sidebar.selectbox(
     "Mode",
-    ["Max Return", "Min Variance (target μ)", "Risk–Return Tradeoff (μ − γσ²)", "Efficient Frontier + Max Sharpe"],
+    ["Max Return", "Min Variance (target μ)", "Risk/Return Tradeoff (μ − γσ²)", "Max Sharpe"],
 )
 long_only = st.sidebar.checkbox("Long only (no shorting)", value=True)
 
@@ -251,7 +251,7 @@ elif opt_mode == "Risk–Return Tradeoff (μ − γσ²)":
 st.sidebar.header("Risk Settings")
 tail_prob = st.sidebar.slider("Tail prob for VaR/CVaR", min_value=0.01, max_value=0.10, value=0.05, step=0.01)
 horizon_days_var = st.sidebar.number_input("Horizon (days) for VaR/CVaR", min_value=1, value=20, step=1)
-horizon_days_mc = st.sidebar.number_input("Horizon (days) for MC stress", min_value=10, value=126, step=1)
+horizon_days_mc = st.sidebar.number_input("Horizon (days) for MC sim", min_value=10, value=126, step=1)
 mc_paths = st.sidebar.number_input("# Monte Carlo paths", min_value=1000, value=5000, step=1000)
 
 go = st.sidebar.button("Run")
@@ -294,11 +294,11 @@ if tickers_str:
                     weights = solve_min_var(cov.values, target_ret, mu.values, long_only=long_only)
                     chosen_label = f"Min Var @ μ≥{target_ret:.2%}"
 
-                elif opt_mode == "Risk–Return Tradeoff (μ − γσ²)":
+                elif opt_mode == "Risk/Return Tradeoff (μ − γσ²)":
                     weights = solve_tradeoff(mu.values, cov.values, gamma=gamma, long_only=long_only)
                     chosen_label = f"Tradeoff (γ={gamma:.0f})"
 
-                elif opt_mode == "Efficient Frontier + Max Sharpe":
+                elif opt_mode == "Max Sharpe":
                     W, pts = efficient_frontier(mu.values, cov.values, n_points=40, long_only=long_only)
                     if W is None or pts is None or len(W) == 0:
                         st.error("Efficient frontier failed to compute.")
@@ -375,8 +375,8 @@ if tickers_str:
                             st.write(f"VaR: **{var_p:.2%}**  |  CVaR: **{cvar_p:.2%}**")
 
                         # Runs monte carlo simulation on our portfolio
-                        st.subheader("Monte Carlo Stress Test (Correlated, Multi-Asset)")
-                        mc = mc_stress_test(mu, cov, weights, horizon_days=horizon_days_mc, n_paths=int(mc_paths))
+                        st.subheader("Monte Carlo Simulation (Correlated, Multi-Asset)")
+                        mc = mc_sim(mu, cov, weights, horizon_days=horizon_days_mc, n_paths=int(mc_paths))
                         
                         # Finds mean and std of portfolio
                         mean_ret_h = mc["horizon_rets"].mean()
