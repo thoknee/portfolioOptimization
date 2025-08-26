@@ -320,38 +320,47 @@ if tickers_str:
                     else:
                         weights = weights / s
 
+                        # Finds portfolio stats and prints them
                         r, v, s_ = portfolio_stats(weights, mu.values, cov.values, rf=rf)
                         st.success(f"Solution: {chosen_label}")
                         st.write(f"Expected μ: **{r:.2%}**  |  σ: **{v:.2%}**  |  Sharpe (rf={rf:.2%}): **{s_:.2f}**")
 
+                        # optimized weights
                         w_df = pd.DataFrame({"Ticker": prices.columns, "Weight": weights})
                         st.write("Weights")
                         st.dataframe(w_df.style.format({"Weight": "{:.2%}"}))
-
+                        
+                        # pie chart of the weights
                         fig_w = plt.figure()
                         plt.pie(weights, labels=prices.columns, autopct='%1.1f%%')
                         plt.title("Portfolio Weights")
                         st.pyplot(fig_w)
 
-                        # --- Backtest & metrics ---
+
+                        # Porfolio returns and money made
                         port_rets, curve = backtest_static(prices, weights)
                         st.write("Backtest (Static Weights)")
                         st.line_chart(curve)
 
+                        # Drawdowns
                         mdd, dd_series = max_drawdown(curve)
                         sharpe = (port_rets.mean()*252 - rf) / (port_rets.std()*np.sqrt(252)) if port_rets.std() > 0 else np.nan
                         sortino = sortino_ratio(port_rets, rf_annual=rf, target_annual=0.0)
                         calmar = calmar_ratio(curve)
 
+
+                        # ratios
                         c3, c4, c5 = st.columns(3)
                         c3.metric("Sharpe", f"{sharpe:.2f}")
                         c4.metric("Sortino", f"{sortino:.2f}")
                         c5.metric("Calmar", f"{calmar:.2f}")
 
+                        # Prints max drawdown
                         st.write(f"Max Drawdown: **{mdd:.2%}**")
                         st.line_chart(dd_series, height=180)
 
-                        # --- VaR / CVaR (Historical & Parametric via MC draws) ---
+
+                        # Calculates value at risk and conditional value at risk
                         st.subheader("VaR / CVaR")
                         var_h, cvar_h = hist_var_cvar(port_rets, horizon_days=horizon_days_var, tail_prob=tail_prob)
                         port_mean_d, port_std_d = port_rets.mean(), port_rets.std(ddof=0)
@@ -365,7 +374,7 @@ if tickers_str:
                             st.markdown(f"**Parametric (Normal MC, {int((1-tail_prob)*100)}% conf, {horizon_days_var}d)**")
                             st.write(f"VaR: **{var_p:.2%}**  |  CVaR: **{cvar_p:.2%}**")
 
-                        # --- Monte Carlo Stress Test (multi-asset, correlated) ---
+
                         st.subheader("Monte Carlo Stress Test (Correlated, Multi-Asset)")
                         mc = mc_stress_test(mu, cov, weights, horizon_days=horizon_days_mc, n_paths=int(mc_paths))
 
@@ -375,14 +384,15 @@ if tickers_str:
                         c8.metric("MDD (mean, MC)", f"{mc['MDD_mean']:.2%}")
                         c9.metric("MDD (5th pct, MC)", f"{mc['MDD_p5']:.2%}")
 
-                        # Histogram of horizon returns
+
+                        # Histogram of returns
                         fig_hist = plt.figure()
                         plt.hist(mc["horizon_rets"], bins=50)
                         plt.title(f"MC Horizon Returns Distribution ({horizon_days_mc}d)")
                         plt.xlabel("Return"); plt.ylabel("Freq")
                         st.pyplot(fig_hist)
 
-                        # Efficient frontier plot if available
+                        # Efficient frontier graph.
                         if frontier_pts is not None:
                             fig = plt.figure()
                             plt.scatter(frontier_pts[:,1], frontier_pts[:,0])
@@ -394,14 +404,4 @@ if tickers_str:
             except Exception as e:
                 st.error(f"Error during optimization: {e}")
 
-with st.expander("Notes & Tips"):
-    st.markdown(
-        """
-- All means/covariances are **annualized** (×252 for μ, ×252 for Σ).  
-- Sharpe uses your **risk-free rate**; Sortino uses a 0% MAR; Calmar = annualized return / |max drawdown|.  
-- Historical VaR/CVaR uses rolling **horizon-day** sums on daily returns.  
-- Parametric VaR/CVaR samples from **Normal(μ,σ)** (MC draws) to avoid SciPy dependency.  
-- MC Stress Test simulates correlated daily returns from μ/252 and Σ/252 with Cholesky (PSD-safe).  
-- Solver fallback sequence: **ECOS → OSQP → SCS**.
-        """
-    )
+
