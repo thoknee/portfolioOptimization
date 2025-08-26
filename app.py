@@ -237,16 +237,16 @@ rf = st.sidebar.number_input("Risk free rate (annual, dec.)", value=0.02, step=0
 st.sidebar.header("Optimization")
 opt_mode = st.sidebar.selectbox(
     "Mode",
-    ["Max Return", "Min Variance (target μ)", "Risk/Return Tradeoff (μ − γσ²)", "Max Sharpe"],
+    ["Minimum Variance","Max Return", "Risk/Return Tradeoff (return − gamma*sigma^2)", "Max Sharpe"],
 )
 long_only = st.sidebar.checkbox("Long only (no shorting)", value=True)
 
 gamma = None
 target_ret = None
-if opt_mode == "Min Variance (target μ)":
-    target_ret = st.sidebar.number_input("Target annual return (dec.)", value=0.10, step=0.01, format="%.3f")
-elif opt_mode == "Risk–Return Tradeoff (μ − γσ²)":
-    gamma = st.sidebar.slider("Risk aversion γ", min_value=1.0, max_value=100.0, value=10.0, step=1.0)
+if opt_mode == "Minimum Variance":
+    target_ret = st.sidebar.number_input("Target annual return", value=0.10, step=0.01, format="%.3f")
+elif opt_mode == "Risk/Return Tradeoff (return − gamma*sigma^2)":
+    gamma = st.sidebar.slider("Risk aversion gamma", min_value=1.0, max_value=100.0, value=10.0, step=1.0)
 
 st.sidebar.header("Risk Settings")
 tail_prob = st.sidebar.slider("Tail prob for VaR/CVaR", min_value=0.01, max_value=0.10, value=0.05, step=0.01)
@@ -271,10 +271,10 @@ if tickers_str:
 
         c1, c2 = st.columns(2)
         with c1:
-            st.write("Annualized Mean (μ)")
+            st.write("Annualized Mean")
             st.dataframe(mu.to_frame("μ").style.format("{:.2%}"))
         with c2:
-            st.write("Annualized Covariance (Σ)")
+            st.write("Annualized Covariance")
             st.dataframe(pd.DataFrame(cov, index=prices.columns, columns=prices.columns).style.format("{:.4f}"))
 
         st.write("Correlation Matrix")
@@ -290,13 +290,13 @@ if tickers_str:
                     weights = solve_max_return(mu.values, long_only=long_only)
                     chosen_label = "Max Return"
 
-                elif opt_mode == "Min Variance (target μ)":
+                elif opt_mode == "Minimum Variance":
                     weights = solve_min_var(cov.values, target_ret, mu.values, long_only=long_only)
-                    chosen_label = f"Min Var @ μ≥{target_ret:.2%}"
+                    chosen_label = f"Min Var @ return≥{target_ret:.2%}"
 
-                elif opt_mode == "Risk/Return Tradeoff (μ − γσ²)":
+                elif opt_mode == "Risk/Return Tradeoff (return − gamma*sigma^2)":
                     weights = solve_tradeoff(mu.values, cov.values, gamma=gamma, long_only=long_only)
-                    chosen_label = f"Tradeoff (γ={gamma:.0f})"
+                    chosen_label = f"Tradeoff (gamma={gamma:.0f})"
 
                 elif opt_mode == "Max Sharpe":
                     W, pts = efficient_frontier(mu.values, cov.values, n_points=40, long_only=long_only)
@@ -323,7 +323,7 @@ if tickers_str:
                         # Finds portfolio stats and prints them
                         r, v, s_ = portfolio_stats(weights, mu.values, cov.values, rf=rf)
                         st.success(f"Solution: {chosen_label}")
-                        st.write(f"Expected μ: **{r:.2%}**  |  σ: **{v:.2%}**  |  Sharpe (rf={rf:.2%}): **{s_:.2f}**")
+                        st.write(f"Expected return: **{r:.2%}**  |  vol: **{v:.2%}**  |  Sharpe (rf={rf:.2%}): **{s_:.2f}**")
 
                         # optimized weights
                         w_df = pd.DataFrame({"Ticker": prices.columns, "Weight": weights})
@@ -411,7 +411,7 @@ if tickers_str:
                             fig = plt.figure()
                             plt.scatter(frontier_pts[:,1], frontier_pts[:,0])
                             plt.scatter([v], [r], marker="*", s=200)
-                            plt.xlabel("Volatility (σ)"); plt.ylabel("Return (μ)")
+                            plt.xlabel("Volatility"); plt.ylabel("Return")
                             plt.title("Efficient Frontier (annualized)")
                             st.pyplot(fig)
 
