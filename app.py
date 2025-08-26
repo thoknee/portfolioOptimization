@@ -229,7 +229,7 @@ st.set_page_config(page_title="Portfolio Optimization Dashboard", layout="wide")
 st.title("Portfolio Optimization Dashboard")
 
 st.sidebar.header("Data")
-tickers_str = st.sidebar.text_input("Comma-separated tickers", value="AAPL,MSFT,GOOGL")
+tickers_str = st.sidebar.text_input("Comma-separated tickers", value="AAPL, MSFT, GOOGL, AMZN, JNJ, PG, JPM")
 start_date = st.sidebar.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
 end_date = st.sidebar.date_input("End Date", value=pd.Timestamp.today().normalize())
 rf = st.sidebar.number_input("Risk-free rate (annual, dec.)", value=0.02, step=0.005, format="%.3f")
