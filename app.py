@@ -263,10 +263,10 @@ if tickers_str:
         st.warning("No price data found for the chosen dates/tickers.")
     else:
         st.subheader("Price Data")
-        st.dataframe(prices.tail(10))
+        st.dataframe(prices)
         rets_d = daily_returns(prices)
 
-        st.subheader("Return Diagnostics")
+        st.subheader("General Stats")
         mu, cov = ann_stats(rets_d)
 
         c1, c2 = st.columns(2)
@@ -374,16 +374,30 @@ if tickers_str:
                             st.markdown(f"**Parametric (Normal MC, {int((1-tail_prob)*100)}% conf, {horizon_days_var}d)**")
                             st.write(f"VaR: **{var_p:.2%}**  |  CVaR: **{cvar_p:.2%}**")
 
-
+                        # Runs monte carlo simulation on our portfolio
                         st.subheader("Monte Carlo Stress Test (Correlated, Multi-Asset)")
                         mc = mc_stress_test(mu, cov, weights, horizon_days=horizon_days_mc, n_paths=int(mc_paths))
+                        
+                        # Finds mean and std of portfolio
+                        mean_ret_h = mc["horizon_rets"].mean()
+                        std_ret_h = mc["horizon_rets"].std(ddof=0)
 
-                        c6, c7, c8, c9 = st.columns(4)
+                        # Finds mean, std, and sharpe
+                        ann_factor = 252 / horizon_days_mc
+                        mc_mu = mean_ret_h * ann_factor
+                        mc_sigma = std_ret_h * np.sqrt(ann_factor)
+                        mc_sharpe = (mc_mu - rf) / mc_sigma if mc_sigma > 0 else np.nan
+                        
+
+                        # Find the value at risk, max drawdown, and the returns/sharpe
+                        # through a montecarlo simulation.
+                        c6, c7, c8, c9, c10, c11 = st.columns(6)
                         c6.metric(f"MC VaR5 ({horizon_days_mc}d)", f"{mc['VaR5']:.2%}")
                         c7.metric(f"MC CVaR5 ({horizon_days_mc}d)", f"{mc['CVaR5']:.2%}")
                         c8.metric("MDD (mean, MC)", f"{mc['MDD_mean']:.2%}")
                         c9.metric("MDD (5th pct, MC)", f"{mc['MDD_p5']:.2%}")
-
+                        c10.metric("MC Exp. Return (annual)", f"{mc_mu:.2%}")
+                        c11.metric("MC Sharpe (annual)", f"{mc_sharpe:.2f}")
 
                         # Histogram of returns
                         fig_hist = plt.figure()
