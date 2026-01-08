@@ -4,4 +4,4 @@ numpy
 yfinance
 cvxpy
 matplotlib
-statsmodels.api 
+statsmodels
